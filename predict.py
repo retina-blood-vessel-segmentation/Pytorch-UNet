@@ -46,7 +46,7 @@ def predict_img(net,
         probs = tf(probs.cpu())
         full_mask = probs.squeeze().cpu().numpy()
 
-    return full_mask > out_threshold
+    return full_mask, full_mask > out_threshold
 
 
 def get_args():
@@ -94,7 +94,10 @@ def get_output_filenames(args):
 
 
 def mask_to_image(mask):
-    return Image.fromarray((mask * 255).astype(np.uint8))
+    if mask.dtype in [np.float16, np.float32, np.float64]:
+        return Image.fromarray((mask * 255.).astype(np.uint8))
+    else:
+        return Image.fromarray((mask * 255).astype(np.uint8))
 
 
 if __name__ == "__main__":
@@ -118,7 +121,7 @@ if __name__ == "__main__":
 
         img = Image.open(fn)
 
-        mask = predict_img(net=net,
+        pmap, _ = predict_img(net=net,
                            full_img=img,
                            scale_factor=args.scale,
                            out_threshold=args.mask_threshold,
@@ -126,11 +129,11 @@ if __name__ == "__main__":
 
         if not args.no_save:
             out_fn = out_files[i]
-            result = mask_to_image(mask)
+            result = mask_to_image(pmap)
             result.save(out_files[i])
 
             logging.info("Mask saved to {}".format(out_files[i]))
 
         if args.viz:
             logging.info("Visualizing results for image {}, close to continue ...".format(fn))
-            plot_img_and_mask(img, mask)
+            plot_img_and_mask(img, pmap)

@@ -35,8 +35,10 @@ def submit(net):
 
             img = Image.open(dir + i)
 
-            mask = predict_img(net, img, device)
-            enc = rle_encode(mask)
+            probability_map, mask = predict_img(net, img, device)
+            # enc = rle_encode(mask)
+            # f.write('{},{}\n'.format(i, ' '.join(map(str, enc))))
+            enc = rle_encode(probability_map)
             f.write('{},{}\n'.format(i, ' '.join(map(str, enc))))
 
 
