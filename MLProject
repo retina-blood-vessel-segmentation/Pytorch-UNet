@@ -1,0 +1,24 @@
+name: UNet network
+
+entry_points:
+    train:
+        parameters:
+            train_images_dir: path
+            train_labels_dir: path
+            model_dir: string
+            dataset: string
+        command: "python train.py
+            --train_images_dir {train_images_dir}
+            --train_labels_dir {train_labels_dir}
+            --model_dir {model_dir}
+            --dataset {dataset}"
+
+    predict:
+        parameters:
+            model: path
+            input: path
+            output: string
+        command: "python predict.py
+            --model {model}
+            --input {input}
+            --output {output}"
