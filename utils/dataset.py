@@ -44,6 +44,38 @@ class BasicDataset(Dataset):
 
     @classmethod
     def _crop_to_shape(cls, data, new_shape):
+        if type(data) == np.array:
+            return cls._numpy_crop_to_shape(data, new_shape)
+        else:
+            return cls._pillow_crop_to_shape(data, new_shape)
+
+    @classmethod
+    def _pillow_crop_to_shape(cls, data, new_shape):
+        """
+        Crops a pillow Image object relatively to bottom right corner of a cropping rectangle.
+
+        :param data: The pillow Image to crop.
+        :param new_shape: A (height, width) tuple representing the target's shape. Must be smaller of equal to the data
+                          shape.
+
+        :returns: Resized pillow Image object.
+        """
+        # assert type(data) == Image, f"Expects a pillow Image object, but the data is of type {type(data)}."
+
+        w, h = data.size
+        new_w, new_h = new_shape[1], new_shape[0]
+
+        if w == new_w and h == new_h:
+            return data
+
+        assert new_w <= w and new_h <= h
+        left, upper = new_w - w, new_h - h
+        right, bottom = left + new_w, upper + new_h
+
+        return data.crop((left, upper, right, bottom))
+
+    @classmethod
+    def _numpy_crop_to_shape(cls, data, new_shape):
         """
         Crops the array to the given image shape. The resulting image's will original data in range (0, new_height) to
         (0, new_width). The function expects a numpy array of size [1, h, w, c], [h, w, c] or [h, w]. A shape to resize to
@@ -82,18 +114,17 @@ class BasicDataset(Dataset):
     @classmethod
     def preprocess(cls, pil_img, scale, mode='train', dataset=None):
         w, h = pil_img.size
-        if mode == 'train':
-            newW, newH = int(scale * w), int(scale * h)
-            assert newW > 0 and newH > 0, 'Scale is too small'
-            pil_img = pil_img.resize((newW, newH))
+
+        assert dataset is not None, 'Dataset must be specified!'
+        expected_h, expected_w = cls._get_image_size(dataset)
+        if w != expected_w or h != expected_h:
+            pil_img = cls._crop_to_shape(pil_img, (expected_h, expected_w))
+
+        scaled_w, scaled_h = int(scale * w), int(scale * h)
+        assert scaled_w > 0 and scaled_h > 0, 'Scale is too small'
+        pil_img = pil_img.resize((scaled_w, scaled_h))
 
         img_nd = np.array(pil_img, dtype=np.uint8)
-
-        if mode != 'train': # it is 'predict' then
-            assert dataset is not None, 'Dataset must be specified!'
-            new_shape = list(img_nd.shape)
-            new_shape[0:2] = cls._get_image_size(dataset)   # rewrite h, w with new values
-            img_nd = cls._crop_to_shape(data=img_nd, new_shape=new_shape)
 
         if len(img_nd.shape) == 2:
             img_nd = np.expand_dims(img_nd, axis=2)

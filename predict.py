@@ -36,10 +36,12 @@ def predict_img(net,
 
         probs = probs.squeeze(0)
 
+        image_size = BasicDataset._get_image_size(dataset)
+
         tf = transforms.Compose(
             [
                 transforms.ToPILImage(),
-                # transforms.Resize(full_img.size[1]),
+                transforms.Resize(image_size),
                 transforms.ToTensor()
             ]
         )
