@@ -6,3 +6,6 @@ checkpoints/
 *.jpg
 SUBMISSION*
 venv/
+/results/
+/runs/
+/autoflow/mlruns/
