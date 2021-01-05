@@ -36,8 +36,8 @@ class DatasetConfiguration:
                 troot = root / dataset
                 dataset_config = DatasetConfiguration(
                     dataset_name=dataset,
-                    test_images_path=str(troot / "test/images"),
-                    test_masks_path=str(troot / "test/masks"),
+                    test_images_path=str(troot / "images"),
+                    test_masks_path=str(troot / "masks"),
                 )
                 dataset_configs.append(dataset_config)
         else:

@@ -14,7 +14,7 @@ def train_all(models_root_dir, dataset_root_dir):
 
     datasets = DatasetConfiguration.get_datasets_configuration(dataset_root_dir, mode='train')
 
-    for dataset_config in datasets[:1]:
+    for dataset_config in datasets[2:]: # just chase
 
         parameters = {
             'train_images_dir': str(project_path / dataset_config.train_images_path),
@@ -24,7 +24,7 @@ def train_all(models_root_dir, dataset_root_dir):
             'batch-size': 4,
             'learning-rate': 0.0001,
             'epochs': 150,
-            'scale': 1
+            'scale': 0.5
         }
 
         try:
