@@ -73,8 +73,12 @@ def train_net(net,
             'validation size': n_val
         })
 
-        optimizer = optim.RMSprop(net.parameters(), lr=lr, weight_decay=1e-8, momentum=0.9)
-        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min' if net.n_classes > 1 else 'max', patience=2)
+        # optimizer = optim.RMSprop(net.parameters(), lr=lr, weight_decay=1e-8, momentum=0.9)
+        optimizer = optim.Adam(net.parameters(), lr=lr, weight_decay=1e-8)
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,
+                                                         mode=('min' if net.n_classes > 1 else 'max'),
+                                                         patience=5,
+                                                         verbose=True)
         if net.n_classes > 1:
             criterion = nn.CrossEntropyLoss()
         else:
@@ -120,7 +124,7 @@ def train_net(net,
                             writer.add_histogram('grads/' + tag, value.grad.data.cpu().numpy(), global_step)
                         val_score = eval_net(net, val_loader, device)
                         epoch_val_score = val_score
-                        scheduler.step(val_score)
+                        # scheduler.step(val_score)
                         writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], global_step)
 
                         if net.n_classes > 1:
@@ -134,6 +138,8 @@ def train_net(net,
                         if net.n_classes == 1:
                             writer.add_images('masks/true', true_masks, global_step)
                             writer.add_images('masks/pred', torch.sigmoid(masks_pred) > 0.5, global_step)
+            scheduler.step(epoch_val_score)
+
 
             mlflow.log_metric('train_loss', epoch_loss)
             mlflow.log_metric('val_dice_coeff', epoch_val_score)
@@ -200,7 +206,7 @@ if __name__ == '__main__':
     #   - For 1 class and background, use n_classes=1
     #   - For 2 classes, use n_classes=1
     #   - For N > 2 classes, use n_classes=N
-    net = UNet(n_channels=3, n_classes=1, bilinear=True)
+    net = UNet(n_channels=3, n_classes=1, bilinear=False)
     logging.info(f'Network:\n'
                  f'\t{net.n_channels} input channels\n'
                  f'\t{net.n_classes} output channels (classes)\n'

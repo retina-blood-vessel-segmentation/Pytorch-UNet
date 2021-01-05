@@ -25,13 +25,75 @@ class BasicDataset(Dataset):
         return len(self.ids)
 
     @classmethod
-    def preprocess(cls, pil_img, scale):
-        w, h = pil_img.size
-        newW, newH = int(scale * w), int(scale * h)
-        assert newW > 0 and newH > 0, 'Scale is too small'
-        pil_img = pil_img.resize((newW, newH))
+    def _get_image_size(cls, dataset):
+        """
+        Returns a size for images of the given dataset in form of (height, width) tuple.
 
-        img_nd = np.array(pil_img)
+        :param dataset: Currently supported DRIVE, CHASE, STARE, HRF or DROPS.
+        """
+        if dataset.lower() == 'drive':
+            return 584, 565
+        if dataset.lower() == 'chase':
+            return 960, 999
+        if dataset.lower() == 'stare':
+            return 605, 700
+        if dataset.lower() == 'drops':
+            return 480, 640
+        if dataset.lower() == 'hrf':
+            return 2336, 3504
+
+    @classmethod
+    def _crop_to_shape(cls, data, new_shape):
+        """
+        Crops the array to the given image shape. The resulting image's will original data in range (0, new_height) to
+        (0, new_width). The function expects a numpy array of size [1, h, w, c], [h, w, c] or [h, w]. A shape to resize to
+        must be of same dimensionality as the input data array. If data and target shapes are identical, input data is not
+        modified.
+
+        :param data: The array to crop.
+        :param shape: The target shape. Must be smaller or equal to the source shape.
+
+        :returns: 4D, 3D or 2D cropped numpy array of target shape. If target shape and data shape are identical, unmodified
+                  data array is returned.
+        """
+
+        if len(data.shape) == 4:
+            assert len(new_shape) == 4, f'new_shape is {new_shape}, but should be {data.shape}.'
+            if data.shape[1:3] == new_shape[1:3]:  # no need to resize, width and hight are already same
+                return data
+            assert new_shape[1] <= data.shape[1] and new_shape[2] <= data.shape[2]  # resulting shape must be smaller
+            print(f'> [crop] Crop from shape {data.shape} to {new_shape}.')
+            return data[:, (data.shape[0] - new_shape[0]):, (data.shape[1] - new_shape[1]):, :]
+        elif len(data.shape) == 3:
+            assert len(new_shape) == 3, f'new_shape is {new_shape}, but should be {data.shape}.'
+            if data.shape[:2] == new_shape[:2]:
+                return data
+            assert new_shape[0] <= data.shape[0] and new_shape[1] <= data.shape[1]
+            print(f'> [crop] Crop from shape {data.shape} to {new_shape}.')
+            return data[(data.shape[0] - new_shape[0]):, (data.shape[1] - new_shape[1]):, :]
+        elif len(data.shape) == 2:
+            assert len(new_shape) == 2, f'new_shape is {new_shape}, but should be {data.shape}.'
+            if data.shape == new_shape:
+                return data
+            assert new_shape[0] <= data.shape[0] and new_shape[1] <= data.shape[1]
+            print(f'> [crop] Crop from shape {data.shape} to {new_shape}.')
+            return data[(data.shape[0] - new_shape[0]):, (data.shape[1] - new_shape[1]):]
+
+    @classmethod
+    def preprocess(cls, pil_img, scale, mode='train', dataset=None):
+        w, h = pil_img.size
+        if mode == 'train':
+            newW, newH = int(scale * w), int(scale * h)
+            assert newW > 0 and newH > 0, 'Scale is too small'
+            pil_img = pil_img.resize((newW, newH))
+
+        img_nd = np.array(pil_img, dtype=np.uint8)
+
+        if mode != 'train': # it is 'predict' then
+            assert dataset is not None, 'Dataset must be specified!'
+            new_shape = list(img_nd.shape)
+            new_shape[0:2] = cls._get_image_size(dataset)   # rewrite h, w with new values
+            img_nd = cls._crop_to_shape(data=img_nd, new_shape=new_shape)
 
         if len(img_nd.shape) == 2:
             img_nd = np.expand_dims(img_nd, axis=2)
@@ -52,7 +114,7 @@ class BasicDataset(Dataset):
             f'Either no mask or multiple masks found for the ID {idx}: {mask_file}'
         assert len(img_file) == 1, \
             f'Either no image or multiple images found for the ID {idx}: {img_file}'
-        mask = Image.open(mask_file[0])
+        mask = Image.open(mask_file[0]).convert('L')
         img = Image.open(img_file[0])
 
         assert img.size == mask.size, \

@@ -16,11 +16,12 @@ from utils.dataset import BasicDataset
 def predict_img(net,
                 full_img,
                 device,
+                dataset,
                 scale_factor=1,
                 out_threshold=0.5):
     net.eval()
 
-    img = torch.from_numpy(BasicDataset.preprocess(full_img, scale_factor))
+    img = torch.from_numpy(BasicDataset.preprocess(pil_img=full_img, scale=scale_factor, dataset=dataset, mode='predict'))
 
     img = img.unsqueeze(0)
     img = img.to(device=device, dtype=torch.float32)
@@ -38,7 +39,7 @@ def predict_img(net,
         tf = transforms.Compose(
             [
                 transforms.ToPILImage(),
-                transforms.Resize(full_img.size[1]),
+                # transforms.Resize(full_img.size[1]),
                 transforms.ToTensor()
             ]
         )
@@ -72,6 +73,7 @@ def get_args():
     parser.add_argument('--scale', '-s', type=float,
                         help="Scale factor for the input images",
                         default=0.5)
+    parser.add_argument('--dataset', dest='dataset', type=str)
 
     return parser.parse_args()
 
@@ -105,8 +107,9 @@ if __name__ == "__main__":
     in_files = args.input
     out_files = get_output_filenames(args)
 
-    net = UNet(n_channels=3, n_classes=1)
+    net = UNet(n_channels=3, n_classes=1, bilinear=False)
 
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     logging.info("Loading model {}".format(args.model))
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -121,11 +124,14 @@ if __name__ == "__main__":
 
         img = Image.open(fn)
 
-        pmap, _ = predict_img(net=net,
-                           full_img=img,
-                           scale_factor=args.scale,
-                           out_threshold=args.mask_threshold,
-                           device=device)
+        pmap, _ = predict_img(
+            net=net,
+            full_img=img,
+            dataset=args.dataset,
+            scale_factor=args.scale,
+            out_threshold=args.mask_threshold,
+            device=device
+        )
 
         if not args.no_save:
             out_fn = out_files[i]
